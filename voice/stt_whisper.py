@@ -1,7 +1,7 @@
 import os
 import io
 import threading
-from typing import Optional, Union
+from typing import Optional, Union, Any
 import numpy as np
 
 class WhisperSTT:
@@ -35,13 +35,25 @@ class WhisperSTT:
         else:
             self._load_model()
 
-    def transcribe(self, audio: Union[np.ndarray, str, bytes]) -> str:
+    def transcribe(self, audio: Union[np.ndarray, str, bytes, Any]) -> str:
         """
-        Transcribes audio data (numpy float32 array, WAV bytes, or audio file path) to text.
+        Transcribes audio data (numpy float32 array, WAV bytes, AudioData, or audio file path) to text.
         Processes in-memory without temporary disk files.
         """
         if audio is None or (isinstance(audio, (str, bytes)) and len(audio) == 0):
             return ""
+
+        if isinstance(audio, np.ndarray) and audio.size == 0:
+            return ""
+
+        if hasattr(audio, "get_raw_data") and hasattr(audio, "sample_rate") and hasattr(audio, "sample_width"):
+            if audio.sample_rate == 16000 and audio.sample_width == 2:
+                raw_bytes = audio.get_raw_data()
+                audio = np.frombuffer(raw_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+            else:
+                audio = audio.get_wav_data()
+        elif hasattr(audio, "get_wav_data"):
+            audio = audio.get_wav_data()
 
         if self.model is None:
             self._load_model()

@@ -1,12 +1,13 @@
 import os
 import json
 import threading
-from typing import Optional
+from typing import Optional, Any
 import webview
 
 from core.orchestrator import AssistantOrchestrator
 from voice.audio_recorder import AudioRecorder
 from voice.stt_whisper import WhisperSTT
+from voice.ears import JarvisEars
 
 class OrbBridge:
     """
@@ -14,7 +15,7 @@ class OrbBridge:
     Handles events from the HTML/JS frontend.
     """
 
-    def __init__(self, orchestrator: AssistantOrchestrator, recorder: AudioRecorder, stt: WhisperSTT, wake_detector=None):
+    def __init__(self, orchestrator: AssistantOrchestrator, recorder: Any = None, stt: Any = None, wake_detector=None):
         self._orchestrator = orchestrator
         self._recorder = recorder
         self._stt = stt
@@ -116,7 +117,13 @@ class OrbBridge:
 
     def stop_listening(self):
         self._is_listening = False
-        self._recorder.is_recording = False
+        if hasattr(self._recorder, "stop"):
+            try:
+                self._recorder.stop()
+            except Exception:
+                pass
+        if hasattr(self._recorder, "is_recording"):
+            self._recorder.is_recording = False
         self._on_orchestrator_state_change("idle")
         return {"status": "stopped"}
 
@@ -158,13 +165,38 @@ class OrbWindow:
     def __init__(self, orchestrator: AssistantOrchestrator, wake_detector=None):
         self.orchestrator = orchestrator
         self.wake_detector = wake_detector
-        self.recorder = AudioRecorder()
         voice_cfg = self.orchestrator.config.get("voice") or {}
-        self.stt = WhisperSTT(
-            model_size=voice_cfg.get("stt_model", "tiny.en")
-        )
-        # Preload Whisper model in background so the first query does not stutter
-        self.stt.preload(async_load=True)
+        stt_engine = str(voice_cfg.get("stt_engine", "google")).strip().lower()
+
+        if stt_engine == "whisper":
+            self.recorder = AudioRecorder()
+            self.stt = WhisperSTT(
+                model_size=voice_cfg.get("stt_model", "tiny.en"),
+                device=voice_cfg.get("stt_device", "cpu"),
+                compute_type=voice_cfg.get("stt_compute_type", "int8")
+            )
+            self.stt.preload(async_load=True)
+        else:
+            # Jarvis 2.0 technique: Google Speech Recognition with room noise calibration
+            fallback_whisper = None
+            if voice_cfg.get("fallback_to_whisper", True):
+                fallback_whisper = WhisperSTT(
+                    model_size=voice_cfg.get("stt_model", "tiny.en"),
+                    device=voice_cfg.get("stt_device", "cpu"),
+                    compute_type=voice_cfg.get("stt_compute_type", "int8")
+                )
+            self.ears = JarvisEars(
+                language=voice_cfg.get("stt_language", "en-US"),
+                calibration_duration=float(voice_cfg.get("calibration_duration", 1.5)),
+                energy_threshold_offset=int(voice_cfg.get("energy_threshold_offset", 50)),
+                timeout=float(voice_cfg.get("listen_timeout", 5.0)),
+                phrase_time_limit=float(voice_cfg.get("phrase_time_limit", 15.0)),
+                fallback_stt=fallback_whisper,
+                calibrate_on_init=False
+            )
+            self.ears.preload(async_load=True)
+            self.recorder = self.ears
+            self.stt = self.ears
 
         self.bridge = OrbBridge(self.orchestrator, self.recorder, self.stt, wake_detector=self.wake_detector)
         self.window = None

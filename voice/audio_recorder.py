@@ -2,7 +2,14 @@ import numpy as np
 import time
 import io
 import wave
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, Any
+
+try:
+    import speech_recognition as sr
+    _sr_available = True
+except ImportError:
+    sr = None
+    _sr_available = False
 
 try:
     import sounddevice as sd
@@ -85,16 +92,22 @@ class AudioRecorder:
         full_audio = np.concatenate(chunks)
         return full_audio
 
-    def audio_to_wav_bytes(self, audio: np.ndarray) -> bytes:
+    def audio_to_wav_bytes(self, audio: Union[np.ndarray, bytes, Any]) -> bytes:
         """
-        Converts float32 audio numpy array to WAV bytes with safe clipping.
+        Converts float32 audio numpy array or sr.AudioData to WAV bytes with safe clipping.
         """
-        clipped = np.clip(audio, -1.0, 1.0)
-        int_audio = np.int16(clipped * 32767)
-        wav_io = io.BytesIO()
-        with wave.open(wav_io, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(self.sample_rate)
-            wf.writeframes(int_audio.tobytes())
-        return wav_io.getvalue()
+        if hasattr(audio, "get_wav_data"):
+            return audio.get_wav_data()
+        if isinstance(audio, bytes):
+            return audio
+        if isinstance(audio, np.ndarray):
+            clipped = np.clip(audio, -1.0, 1.0)
+            int_audio = np.int16(clipped * 32767)
+            wav_io = io.BytesIO()
+            with wave.open(wav_io, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(self.sample_rate)
+                wf.writeframes(int_audio.tobytes())
+            return wav_io.getvalue()
+        return b""

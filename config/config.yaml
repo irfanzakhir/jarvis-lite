@@ -36,11 +36,20 @@ voice:
   tts_volume: "+0%"
   tts_enabled: true
   
-  # Local lightweight Speech-to-Text via Faster-Whisper
+  # Speech Recognition (Jarvis 2.0 technique: Google Web Speech API with room noise calibration)
+  stt_engine: "google" # Options: "google" (Jarvis 2.0 technique, high accuracy), "whisper" (local Faster-Whisper)
+  stt_language: "en-US"
+  calibration_duration: 1.5 # Room noise calibration on startup (seconds)
+  energy_threshold_offset: 50 # Offset added to calibrated ambient noise floor to prevent false triggers
+  listen_timeout: 5.0 # Max seconds to wait for user to start speaking
+  phrase_time_limit: 15.0 # Max length of spoken command phrase
+  fallback_to_whisper: true # Automatic fallback to local Whisper if offline
+  stt_enabled: true
+
+  # Local lightweight Speech-to-Text via Faster-Whisper (used when stt_engine is "whisper" or as offline fallback)
   stt_model: "tiny.en"
   stt_device: "cpu"
   stt_compute_type: "int8"
-  stt_enabled: true
 
 powershell:
   # When true, destructive commands (Remove-Item, Stop-Process, etc.) ask for 1-click confirmation in the UI

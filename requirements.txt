@@ -7,7 +7,11 @@ pyyaml>=6.0.1
 edge-tts>=6.1.12
 pygame>=2.5.2
 
-# Free Local Speech Recognition (Faster-Whisper on CPU)
+# High-Accuracy Speech Recognition (Jarvis 2.0 Technique: Google Speech Recognition & PyAudio)
+SpeechRecognition>=3.10.0
+PyAudio>=0.2.14
+
+# Local Speech Recognition Alternative / Offline Fallback (Faster-Whisper on CPU)
 faster-whisper>=1.0.0
 sounddevice>=0.4.6
 numpy>=1.24.0

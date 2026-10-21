@@ -24,7 +24,7 @@ class DoubleClapDetector:
     def __init__(
         self,
         on_wake: Optional[Callable] = None,
-        threshold: float = 0.20,
+        threshold: float = 0.30,
         min_gap: float = 0.18,
         max_gap: float = 0.85,
         sample_rate: int = 16000
@@ -100,22 +100,43 @@ class DoubleClapDetector:
             with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype="float32", blocksize=chunk_size) as stream:
                 while self.is_running:
                     if self.is_paused:
-                        time.sleep(0.1)
+                        if hasattr(stream, "active") and stream.active:
+                            try:
+                                stream.stop()
+                            except Exception:
+                                pass
+                        time.sleep(0.05)
                         continue
+                    elif hasattr(stream, "active") and not stream.active:
+                        try:
+                            stream.start()
+                            try:
+                                stream.read(chunk_size)
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
 
                     data, _ = stream.read(chunk_size)
                     audio = data.flatten()
+                    if len(audio) == 0:
+                        continue
 
-                    # Peak amplitude
+                    # Peak amplitude and RMS energy for noise discrimination
                     peak = float(np.max(np.abs(audio)))
+                    rms = float(np.sqrt(np.mean(audio ** 2))) + 1e-6
+                    crest_factor = peak / rms
                     now = time.time()
 
                     # Check timeout if waiting for second clap
                     if self._waiting_for_second and (now - self._last_clap_time) > self.max_gap:
                         self._waiting_for_second = False
 
-                    # Check if audio spike exceeds clap threshold
-                    if peak > self.threshold:
+                    # Check if audio spike exceeds clap threshold with impulsive transient characteristic
+                    # Claps have high peak-to-RMS crest factor (>= 2.0) or low background floor
+                    is_clap_spike = (peak > self.threshold) and (crest_factor >= 2.0 or rms < (self.threshold * 0.4))
+
+                    if is_clap_spike:
                         if not self._waiting_for_second:
                             # First clap detected
                             self._last_clap_time = now
@@ -146,6 +167,11 @@ class DoubleClapDetector:
                                 # Reset and treat this as first clap
                                 self._last_clap_time = now
                                 self._waiting_for_second = True
+                                time.sleep(0.08)
+                            elif delta < self.min_gap:
+                                # Too fast: continuous noise burst or rattle.
+                                # Advance last_clap_time to current spike and debounce so noise train doesn't trigger
+                                self._last_clap_time = now
                                 time.sleep(0.08)
 
         except Exception as e:

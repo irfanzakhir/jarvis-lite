@@ -218,14 +218,16 @@ body {
   display: flex;
   gap: 6px;
   width: 100%;
+  align-items: center;
 }
 
 .input-row input {
   flex: 1;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   color: #fff;
   font-size: 12px;
   outline: none;
@@ -242,20 +244,70 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   color: #fff;
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
+  flex-shrink: 0;
   transition: all 0.2s;
 }
 
 .icon-btn:hover {
   background: rgba(129, 140, 248, 0.3);
   border-color: #818cf8;
+}
+
+.mute-btn {
+  color: #94a3b8;
+}
+
+.mute-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+.mute-btn.active-listening {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  animation: pulse-mute 1.2s infinite ease-in-out;
+}
+
+.mute-header-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #94a3b8;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.mute-header-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.mute-header-btn.active-listening {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+@keyframes pulse-mute {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 #micBtn.recording {

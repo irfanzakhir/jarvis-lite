@@ -61,6 +61,7 @@ class AssistantOrchestrator:
         self.tts_enabled = voice_cfg.get("tts_enabled", True)
 
         # State callback to notify the Orb UI
+        self.current_state = "idle"
         self.on_state_change: Optional[Callable[[str], None]] = None
         self.conversation_history: List[Dict[str, str]] = []
 
@@ -77,6 +78,7 @@ class AssistantOrchestrator:
         """
         Updates assistant state (idle, listening, thinking, speaking, executing).
         """
+        self.current_state = state
         if self.on_state_change:
             try:
                 self.on_state_change(state)

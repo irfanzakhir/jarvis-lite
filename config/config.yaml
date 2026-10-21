@@ -5,10 +5,11 @@ assistant:
   title: "Jarvis Lite - The Windows Assistant"
   wake_hotkey: "ctrl+shift+a"
   wake_clap: true
-  clap_threshold: 0.20
+  clap_threshold: 0.30
   draggable_orb: true
   always_on_top: true
   start_with_windows: false
+  start_minimized: false
 
 llm:
   # Multi-Provider Failsafe Cascade (tried in order)

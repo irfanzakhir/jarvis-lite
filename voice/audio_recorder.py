@@ -28,7 +28,13 @@ class AudioRecorder:
         self.silence_threshold = silence_threshold
         self.silence_duration = silence_duration
         self.is_recording = False
+        self._stopped = False
         self.last_error: Optional[str] = None
+
+    def stop(self):
+        """Stops active recording session immediately."""
+        self._stopped = True
+        self.is_recording = False
 
     def record_until_silence(self, max_seconds: float = 10.0, timeout: float = 4.0) -> Optional[np.ndarray]:
         """
@@ -36,6 +42,7 @@ class AudioRecorder:
         Returns float32 audio numpy array normalized to [-1.0, 1.0].
         """
         self.last_error = None
+        self._stopped = False
         if not _sd_available:
             self.last_error = "sounddevice library is not available"
             print(f"[AudioRecorder] {self.last_error}")
@@ -86,7 +93,7 @@ class AudioRecorder:
         finally:
             self.is_recording = False
 
-        if not chunks or not has_spoken:
+        if self._stopped or not chunks or not has_spoken:
             return None
 
         full_audio = np.concatenate(chunks)

@@ -8,6 +8,8 @@ const speechBubble = document.getElementById("speechBubble");
 const commandInput = document.getElementById("commandInput");
 const sendBtn = document.getElementById("sendBtn");
 const micBtn = document.getElementById("micBtn");
+const muteBtn = document.getElementById("muteBtn");
+const muteHeaderBtn = document.getElementById("muteHeaderBtn");
 const toolCard = document.getElementById("toolCard");
 const toolTitle = document.getElementById("toolTitle");
 const toolDetail = document.getElementById("toolDetail");
@@ -157,15 +159,46 @@ function setState(newState) {
     statusText.textContent = prof.status;
     orbHalo.style.background = prof.halo;
     if (newState === "listening") {
+      if (!hudVisible) {
+        hudVisible = true;
+        if (hudPanel) hudPanel.style.display = "flex";
+        if (hudToggleBtn) hudToggleBtn.textContent = "▼";
+      }
       micBtn.classList.add("recording");
+      if (muteBtn) muteBtn.classList.add("active-listening");
+      if (muteHeaderBtn) muteHeaderBtn.classList.add("active-listening");
     } else {
       micBtn.classList.remove("recording");
+      if (muteBtn) muteBtn.classList.remove("active-listening");
+      if (muteHeaderBtn) muteHeaderBtn.classList.remove("active-listening");
     }
+  }
+}
+
+// Mute / Cancel Listening Function
+function muteListening() {
+  if (currentState === "listening") {
+    setState("idle");
+    if (window.pywebview && window.pywebview.api) {
+      window.pywebview.api.stop_listening();
+    }
+    speechBubble.textContent = "Listening muted. Type your command and press Enter.";
+  } else {
+    speechBubble.textContent = "Microphone muted. Type your command below.";
+  }
+  if (commandInput) {
+    commandInput.focus();
   }
 }
 
 // User Action Handlers
 function submitQuery() {
+  if (currentState === "listening") {
+    if (window.pywebview && window.pywebview.api) {
+      window.pywebview.api.stop_listening();
+    }
+    setState("idle");
+  }
   const query = commandInput.value.trim();
   if (!query) return;
 
@@ -212,18 +245,17 @@ function handleAssistantResponse(resp) {
     toolCard.style.display = "none";
   }
 
-  setState("idle");
+  if (currentState !== "speaking") {
+    setState("idle");
+  }
 }
 
 function toggleMic() {
   if (currentState === "listening") {
-    setState("idle");
-    if (window.pywebview && window.pywebview.api) {
-      window.pywebview.api.stop_listening();
-    }
+    muteListening();
   } else {
     setState("listening");
-    speechBubble.textContent = "Listening to your voice...";
+    speechBubble.textContent = "Listening to your voice... (Click 🔇 to mute or type)";
     if (window.pywebview && window.pywebview.api) {
       window.pywebview.api.start_listening().then((response) => {
         if (response && response.reply) {
@@ -238,12 +270,53 @@ function toggleMic() {
 }
 
 // Event Listeners
-sendBtn.addEventListener("click", submitQuery);
-commandInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") submitQuery();
+sendBtn.addEventListener("click", () => {
+  if (currentState === "listening") {
+    muteListening();
+  }
+  submitQuery();
 });
+
+if (commandInput) {
+  commandInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      if (currentState === "listening") {
+        muteListening();
+      }
+      submitQuery();
+    }
+  });
+
+  // Focus or click inside the input area immediately cancels listening and enables typing
+  commandInput.addEventListener("focus", () => {
+    if (currentState === "listening") {
+      muteListening();
+    }
+  });
+
+  commandInput.addEventListener("click", () => {
+    if (currentState === "listening") {
+      muteListening();
+    }
+  });
+
+  commandInput.addEventListener("input", () => {
+    if (currentState === "listening") {
+      muteListening();
+    }
+  });
+}
+
 micBtn.addEventListener("click", toggleMic);
 document.getElementById("orbWrapper").addEventListener("click", toggleMic);
+
+if (muteBtn) {
+  muteBtn.addEventListener("click", muteListening);
+}
+
+if (muteHeaderBtn) {
+  muteHeaderBtn.addEventListener("click", muteListening);
+}
 
 hudToggleBtn.addEventListener("click", () => {
   hudVisible = !hudVisible;
@@ -252,8 +325,20 @@ hudToggleBtn.addEventListener("click", () => {
 });
 
 closeBtn.addEventListener("click", () => {
+  if (currentState === "listening") {
+    muteListening();
+  }
   if (window.pywebview && window.pywebview.api) {
     window.pywebview.api.hide_window();
+  }
+});
+
+// Escape key cancels listening and focuses input box
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (currentState === "listening") {
+      muteListening();
+    }
   }
 });
 

@@ -36,7 +36,7 @@ def run_cli_mode(orchestrator: AssistantOrchestrator):
             print("\nExiting Jarvis.")
             break
 
-def run_gui_mode(orchestrator: AssistantOrchestrator):
+def run_gui_mode(orchestrator: AssistantOrchestrator, start_minimized: bool = False):
     """
     Full Desktop Siri-like Orb GUI Mode.
     """
@@ -50,7 +50,7 @@ def run_gui_mode(orchestrator: AssistantOrchestrator):
     wake_detector = None
     asst_cfg = orchestrator.config.get("assistant") or {}
     if asst_cfg.get("wake_clap", True):
-        clap_thresh = float(asst_cfg.get("clap_threshold", 0.20))
+        clap_thresh = float(asst_cfg.get("clap_threshold", 0.30))
         wake_detector = DoubleClapDetector(threshold=clap_thresh)
 
     orb_window = OrbWindow(orchestrator, wake_detector=wake_detector)
@@ -93,7 +93,7 @@ def run_gui_mode(orchestrator: AssistantOrchestrator):
 
     # Launch Orb Desktop Window (Blocks on main thread for UI event loop)
     try:
-        orb_window.start()
+        orb_window.start(minimized=start_minimized)
     finally:
         _clean_exit()
 
@@ -101,6 +101,7 @@ def main():
     parser = argparse.ArgumentParser(description="Windows AI Assistant (Agentic Desktop AI)")
     parser.add_argument("--cli", action="store_true", help="Run in command-line mode without GUI")
     parser.add_argument("--config", default="config/config.yaml", help="Path to config file")
+    parser.add_argument("--minimized", action="store_true", help="Start minimized in background / tray")
     args = parser.parse_args()
 
     orchestrator = AssistantOrchestrator(config_path=args.config)
@@ -109,7 +110,7 @@ def main():
         run_cli_mode(orchestrator)
     else:
         try:
-            run_gui_mode(orchestrator)
+            run_gui_mode(orchestrator, start_minimized=args.minimized)
         except Exception as e:
             import traceback
             print(f"[Main] GUI failed to start ({e}). Full stack trace:")

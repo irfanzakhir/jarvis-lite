@@ -15,13 +15,14 @@
         <span class="status-text" id="statusText">Jarvis Ready</span>
       </div>
       <div class="controls-bar no-drag">
+        <button id="muteHeaderBtn" title="Mute / Cancel Listening" class="mute-header-btn">🔇</button>
         <button id="hudToggleBtn" title="Toggle Command HUD">▼</button>
         <button id="closeBtn" title="Hide Orb">✕</button>
       </div>
     </div>
 
     <!-- Siri Rotating Orb Canvas Area -->
-    <div class="orb-wrapper no-drag" id="orbWrapper" title="Click to speak / toggle HUD">
+    <div class="orb-wrapper no-drag" id="orbWrapper" title="Click to speak / toggle listening">
       <div class="orb-halo" id="orbHalo"></div>
       <canvas id="orbCanvas" width="220" height="220"></canvas>
       <div class="orb-core-glow"></div>
@@ -31,7 +32,7 @@
     <div class="hud-panel no-drag" id="hudPanel">
       <!-- Live Assistant Response & Transcript -->
       <div class="speech-bubble" id="speechBubble">
-        "Hello! I am Jarvis. Press <kbd>Ctrl+Shift+A</kbd>, double-clap, or click the mic to speak."
+        "Hello! I am Jarvis. Double-clap to summon, speak, or click 🔇 to mute and type."
       </div>
 
       <!-- Tool Execution & Confirmation Card -->
@@ -46,7 +47,8 @@
 
       <!-- Command Input Box -->
       <div class="input-row">
-        <input type="text" id="commandInput" placeholder="Ask anything or run command..." autocomplete="off">
+        <input type="text" id="commandInput" placeholder="Type a command or hit mic..." autocomplete="off">
+        <button id="muteBtn" title="Mute / Cancel Listening" class="icon-btn mute-btn">🔇</button>
         <button id="micBtn" title="Speak to assistant" class="icon-btn">🎤</button>
         <button id="sendBtn" title="Send text command" class="icon-btn">➤</button>
       </div>

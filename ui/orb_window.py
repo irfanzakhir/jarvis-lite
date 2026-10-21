@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import threading
 from typing import Optional, Any
 import webview
@@ -24,6 +25,9 @@ class OrbBridge:
         self._pending_command = None
         self._is_listening = False
         self._listen_thread = None
+        self._current_state = "idle"
+        self._session_id = 0
+        self._session_lock = threading.Lock()
 
         # Bind orchestrator state change to JS frontend
         self._orchestrator.on_state_change = self._on_orchestrator_state_change
@@ -42,13 +46,25 @@ class OrbBridge:
                 pass
 
     def _on_orchestrator_state_change(self, state: str):
+        self._current_state = state
         safe_state = json.dumps(state)
         self._eval_js(f"window.setAssistantState({safe_state});")
+        if self._wake_detector:
+            try:
+                if state == "idle" and not self._is_listening:
+                    self._wake_detector.resume()
+                elif state in ["listening", "speaking", "thinking", "executing"]:
+                    self._wake_detector.pause()
+            except Exception:
+                pass
 
     def submit_query(self, query: str):
         """
         Receives text query from the HUD input box.
+        Immediately stops any active voice listening and routes the typed query.
         """
+        if self._is_listening:
+            self.stop_listening()
         result = self._orchestrator.handle_query(query)
         if result.get("needs_confirmation"):
             self._pending_command = result.get("command")
@@ -59,12 +75,21 @@ class OrbBridge:
         Records voice from microphone, transcribes with Whisper, and routes query.
         Runs asynchronously in a background thread so pywebview JS bridge remains responsive.
         """
-        if self._is_listening:
-            return {"status": "already_listening"}
+        with self._session_lock:
+            if self._is_listening:
+                return {"status": "already_listening"}
 
-        self._is_listening = True
+            if self._listen_thread and self._listen_thread.is_alive() and threading.current_thread() != self._listen_thread:
+                try:
+                    self._listen_thread.join(timeout=0.3)
+                except Exception:
+                    pass
 
-        def _listen_worker():
+            self._is_listening = True
+            self._session_id += 1
+            session_id = self._session_id
+
+        def _listen_worker(my_session: int):
             if self._wake_detector:
                 try:
                     self._wake_detector.pause()
@@ -72,23 +97,31 @@ class OrbBridge:
                     pass
             try:
                 self._on_orchestrator_state_change("listening")
+                bubble_msg = "Listening to your voice... (Click 🔇 to mute or type)"
+                self._eval_js(f"window.setSpeechBubble({json.dumps(bubble_msg)});")
+
+                # Brief settle delay so any wake chime finishes before mic capture
+                time.sleep(0.25)
+                if not self._is_listening or self._session_id != my_session:
+                    return
+
                 audio = self._recorder.record_until_silence()
-                if not self._is_listening:
-                    self._on_orchestrator_state_change("idle")
+                if not self._is_listening or self._session_id != my_session:
                     return
 
                 if audio is None:
-                    self._on_orchestrator_state_change("idle")
                     err = getattr(self._recorder, "last_error", None)
-                    msg = f"Audio device notice: {err}" if err else "I couldn't hear anything. Please try again."
+                    msg = f"Audio device notice: {err}" if err else "I couldn't hear anything. Please try again or type below."
                     self._eval_js(f"window.setSpeechBubble({json.dumps(msg)});")
                     return
 
                 self._on_orchestrator_state_change("thinking")
                 text = self._stt.transcribe(audio)
+                if not self._is_listening or self._session_id != my_session:
+                    return
+
                 if not text:
-                    self._on_orchestrator_state_change("idle")
-                    msg = json.dumps("I didn't catch that. Could you repeat?")
+                    msg = json.dumps("I didn't catch that. Could you repeat or type below?")
                     self._eval_js(f"window.setSpeechBubble({msg});")
                     return
 
@@ -103,20 +136,26 @@ class OrbBridge:
                 err_msg = json.dumps(f"Error: {e}")
                 self._eval_js(f"window.setSpeechBubble({err_msg});")
             finally:
-                self._is_listening = False
-                self._on_orchestrator_state_change("idle")
-                if self._wake_detector:
-                    try:
-                        self._wake_detector.resume()
-                    except Exception:
-                        pass
+                with self._session_lock:
+                    if self._session_id == my_session:
+                        self._is_listening = False
+                        if self._current_state in ["listening", "thinking"]:
+                            self._on_orchestrator_state_change("idle")
+                        elif self._current_state == "idle" and self._wake_detector:
+                            try:
+                                self._wake_detector.resume()
+                            except Exception:
+                                pass
 
-        self._listen_thread = threading.Thread(target=_listen_worker, daemon=True)
+        self._listen_thread = threading.Thread(target=_listen_worker, args=(session_id,), daemon=True)
         self._listen_thread.start()
         return {"status": "listening_started"}
 
     def stop_listening(self):
-        self._is_listening = False
+        with self._session_lock:
+            self._is_listening = False
+            self._session_id += 1
+
         if hasattr(self._recorder, "stop"):
             try:
                 self._recorder.stop()
@@ -124,7 +163,20 @@ class OrbBridge:
                 pass
         if hasattr(self._recorder, "is_recording"):
             self._recorder.is_recording = False
-        self._on_orchestrator_state_change("idle")
+        if self._listen_thread and self._listen_thread.is_alive() and threading.current_thread() != self._listen_thread:
+            try:
+                self._listen_thread.join(timeout=0.3)
+            except Exception:
+                pass
+        with self._session_lock:
+            if self._current_state in ["listening", "thinking"]:
+                self._on_orchestrator_state_change("idle")
+            elif self._current_state == "idle":
+                if self._wake_detector:
+                    try:
+                        self._wake_detector.resume()
+                    except Exception:
+                        pass
         return {"status": "stopped"}
 
     def confirm_action(self, approved: bool):
@@ -154,6 +206,8 @@ class OrbBridge:
                 pass
 
     def hide_window(self):
+        if self._is_listening:
+            self.stop_listening()
         if self._window:
             self._window.minimize()
 
@@ -201,7 +255,7 @@ class OrbWindow:
         self.bridge = OrbBridge(self.orchestrator, self.recorder, self.stt, wake_detector=self.wake_detector)
         self.window = None
 
-    def start(self):
+    def start(self, minimized: bool = False):
         """
         Creates and starts the pywebview desktop overlay window.
         """
@@ -253,12 +307,30 @@ class OrbWindow:
             background_color="#0f111c"
         )
         self.bridge.set_window(self.window)
+
+        if minimized or (self.orchestrator.config.get("assistant") or {}).get("start_minimized", False):
+            def _on_loaded():
+                try:
+                    self.window.minimize()
+                except Exception:
+                    pass
+            self.window.events.loaded += _on_loaded
+
         webview.start(debug=False)
 
     def restore_and_focus(self):
+        """
+        Restores and shows the assistant window, and immediately starts listening
+        for spoken commands (voice-first workflow).
+        """
         if self.window:
             try:
                 self.window.restore()
                 self.window.show()
             except Exception:
                 pass
+        if hasattr(self, "bridge") and self.bridge:
+            try:
+                self.bridge.start_listening()
+            except Exception as e:
+                print(f"[OrbWindow] Error starting listening on wake: {e}")

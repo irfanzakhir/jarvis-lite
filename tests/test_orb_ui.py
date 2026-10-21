@@ -28,5 +28,12 @@ class TestOrbAssets(unittest.TestCase):
         self.assertTrue(hasattr(bridge, "confirm_action"))
         self.assertTrue(hasattr(bridge, "move_window"))
 
+    def test_mute_button_in_ui(self):
+        index_html = os.path.join(self.assets_dir, "index.html")
+        with open(index_html, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("muteBtn", content)
+        self.assertIn("muteHeaderBtn", content)
+
 if __name__ == "__main__":
     unittest.main()

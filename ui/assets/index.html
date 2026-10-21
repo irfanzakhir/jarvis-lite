@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis Lite: The Windows Assistant</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="pywebview-drag-region">
+  <div class="assistant-container">
+    <!-- Draggable Header / Status Indicator -->
+    <div class="drag-bar" id="dragBar">
+      <div class="status-indicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Jarvis Ready</span>
+      </div>
+      <div class="controls-bar no-drag">
+        <button id="hudToggleBtn" title="Toggle Command HUD">▼</button>
+        <button id="closeBtn" title="Hide Orb">✕</button>
+      </div>
+    </div>
+
+    <!-- Siri Rotating Orb Canvas Area -->
+    <div class="orb-wrapper no-drag" id="orbWrapper" title="Click to speak / toggle HUD">
+      <div class="orb-halo" id="orbHalo"></div>
+      <canvas id="orbCanvas" width="220" height="220"></canvas>
+      <div class="orb-core-glow"></div>
+    </div>
+
+    <!-- Glassmorphism HUD Drawer -->
+    <div class="hud-panel no-drag" id="hudPanel">
+      <!-- Live Assistant Response & Transcript -->
+      <div class="speech-bubble" id="speechBubble">
+        "Hello! I am Jarvis. Press <kbd>Ctrl+Shift+A</kbd>, double-clap, or click the mic to speak."
+      </div>
+
+      <!-- Tool Execution & Confirmation Card -->
+      <div class="tool-card" id="toolCard" style="display: none;">
+        <div class="tool-title" id="toolTitle">⚡ Action Executing</div>
+        <div class="tool-detail" id="toolDetail">...</div>
+        <div class="confirmation-actions" id="confirmActions" style="display: none;">
+          <button class="btn btn-confirm" id="btnApprove">Approve</button>
+          <button class="btn btn-cancel" id="btnCancel">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Command Input Box -->
+      <div class="input-row">
+        <input type="text" id="commandInput" placeholder="Ask anything or run command..." autocomplete="off">
+        <button id="micBtn" title="Speak to assistant" class="icon-btn">🎤</button>
+        <button id="sendBtn" title="Send text command" class="icon-btn">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="orb.js"></script>
+</body>
+</html>

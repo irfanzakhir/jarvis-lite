@@ -1,0 +1,23 @@
+# Core LLM & Client (Groq cloud API / OpenAI compatible)
+openai>=1.50.0
+requests>=2.31.0
+pyyaml>=6.0.1
+
+# Free Natural Neural Speech (Microsoft Edge TTS & Audio Playback)
+edge-tts>=6.1.12
+pygame>=2.5.2
+
+# Free Local Speech Recognition (Faster-Whisper on CPU)
+faster-whisper>=1.0.0
+sounddevice>=0.4.6
+numpy>=1.24.0
+
+# Desktop Siri Orb UI (Edge WebView2 transparent window & Tray)
+pywebview>=5.1
+pystray>=0.19.5
+Pillow>=10.0.0
+
+# Windows OS Automation & Hotkeys
+keyboard>=0.13.5
+pyautogui>=0.9.54
+pywin32>=306

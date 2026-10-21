@@ -1,0 +1,51 @@
+# Jarvis Lite: The Windows Assistant - Configuration
+
+assistant:
+  name: "Jarvis"
+  title: "Jarvis Lite - The Windows Assistant"
+  wake_hotkey: "ctrl+shift+a"
+  wake_clap: true
+  clap_threshold: 0.20
+  draggable_orb: true
+  always_on_top: true
+  start_with_windows: false
+
+llm:
+  # Multi-Provider Failsafe Cascade (tried in order)
+  # When api_key is empty, it automatically loads from your .env file (GROQ_API_KEY, OPENROUTER_API_KEY)
+  providers:
+    - name: "groq"
+      api_key: ""
+      model: "qwen/qwen3.8-27b"
+      base_url: "https://api.groq.com/openai/v1"
+      enabled: true
+
+    - name: "openrouter"
+      api_key: ""
+      model: "openrouter/free"
+      base_url: "https://openrouter.ai/api/v1"
+      enabled: true
+
+  temperature: 0.3
+  max_tokens: 1024
+
+voice:
+  # Microsoft Edge Neural Voice (100% free, natural, zero robotic tone)
+  tts_voice: "en-US-ChristopherNeural"
+  tts_rate: "+0%"
+  tts_volume: "+0%"
+  tts_enabled: true
+  
+  # Local lightweight Speech-to-Text via Faster-Whisper
+  stt_model: "tiny.en"
+  stt_device: "cpu"
+  stt_compute_type: "int8"
+  stt_enabled: true
+
+powershell:
+  # When true, destructive commands (Remove-Item, Stop-Process, etc.) ask for 1-click confirmation in the UI
+  safe_mode: true
+  timeout_seconds: 30
+
+browser:
+  mode: "default"
